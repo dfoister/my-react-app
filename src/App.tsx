@@ -1,12 +1,13 @@
 import React from 'react';
-import logo from './logo.svg';
 import './App.css';
+import './AnimatedBackground';
+import AnimatedBackground from "./AnimatedBackground";
 
 function App() {
   return (
-    <div className="App">
+    <div style={{ position: "relative", width: "100vw", height: "100vh" }} className="App">
+      <AnimatedBackground />
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
         <p>
           This is a WIP :)
         </p>
