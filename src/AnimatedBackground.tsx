@@ -49,7 +49,7 @@ interface BlackCubeProps {
 
 const BlackCube: React.FC<BlackCubeProps> = (props) => {
     const mesh = useRef<Mesh | null>(null);
-    const texture = useLoader(TextureLoader, "/black.png");
+    const texture = useLoader(TextureLoader, "/rick.png");
     const [gpuTier, setGpuTier] = useState<string | null>(null);
     const [angle, setAngle] = useState<number>(Math.random() * Math.PI * 2);
     const [speed] = useState<number>(Math.random() * 0.005 + 0.001);
