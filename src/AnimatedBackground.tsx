@@ -2,11 +2,21 @@ import React, { useRef, useState, useEffect } from "react";
 import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import {Mesh, Color, MathUtils, TextureLoader, MeshBasicMaterial} from "three";
 import { getGPUTier } from "detect-gpu";
+import styled from "styled-components";
 
 interface CubeProps {
     position: [number, number, number];
     color: string;
 }
+
+const BackgroundContainer = styled.div `
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    background: #282c34;
+`;
 
 const Cube: React.FC<CubeProps> = (props) => {
     const mesh = useRef<Mesh | null>(null);
@@ -45,11 +55,12 @@ const Cube: React.FC<CubeProps> = (props) => {
 interface BlackCubeProps {
     position: [number, number, number];
     url: string;
+    img: string;
 }
 
-const BlackCube: React.FC<BlackCubeProps> = (props) => {
+const LinkCube: React.FC<BlackCubeProps> = (props) => {
     const mesh = useRef<Mesh | null>(null);
-    const texture = useLoader(TextureLoader, "/rick.png");
+    const texture = useLoader(TextureLoader, props.img || '/black.png');
     const [gpuTier, setGpuTier] = useState<string | null>(null);
     const [angle, setAngle] = useState<number>(Math.random() * Math.PI * 2);
     const [speed] = useState<number>(Math.random() * 0.005 + 0.001);
@@ -75,7 +86,7 @@ const BlackCube: React.FC<BlackCubeProps> = (props) => {
     });
 
     const onPointerDown = () => {
-        window.open(props.url, "_blank");
+        window.location.href = props.url;
     };
 
     useEffect(() => {
@@ -129,23 +140,33 @@ const AnimatedBackground: React.FC = () => {
             console.log(`Color: ${color.getHexString()}`);
         }
             cubes.push(
-                <BlackCube
+                <LinkCube
                     position={[Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10]}
                     url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                    img="./rick.png"
                     key={19}
+                />,
+                <LinkCube
+                    position={[Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10]}
+                    url={"/chess"}
+                    img={"./chess.png"}
+                    key={20}
                 />
             );
             return cubes;
         };
 
     return (
-        <Canvas style={{ background: "#282c34" }}>
+
+        <BackgroundContainer>
+            <Canvas>
             <pointLight position={[-20, 20, -20]} intensity={0.5} />
             <pointLight position={[20, 20, 20]} intensity={0.5} />
             <pointLight position={[-20, -20, 20]} intensity={0.5} />
             <pointLight position={[20, -20, -20]} intensity={0.5} />
             {generateCubes()}
-        </Canvas>
+            </Canvas>
+        </BackgroundContainer>
     );
 };
 

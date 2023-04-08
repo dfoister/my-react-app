@@ -17,6 +17,7 @@
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "react-three-fiber": "^6.0.13",
+    "styled-components": "^5.3.9",
     "three": "^0.151.3",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
@@ -48,7 +49,9 @@
     ]
   },
   "devDependencies": {
+    "@types/styled-components": "^5.1.26",
     "@types/three": "^0.150.1",
-    "gh-pages": "^5.0.0"
+    "gh-pages": "^5.0.0",
+    "react-router-dom": "^6.10.0"
   }
 }
