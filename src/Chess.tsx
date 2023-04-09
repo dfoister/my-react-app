@@ -1,4 +1,4 @@
-import React, { useState} from "react";
+import React, { useEffect, useState} from "react";
 import styled from "styled-components";
 
 const pieceToImage = (piece: Piece): string | null => {
@@ -67,7 +67,6 @@ const BackgroundContainer = styled.div `
     width: 100vw;
     background: #282c34;
     text-align: center;
-    h1-color: white;
 `;
 
 const Grid = styled.div`
@@ -103,11 +102,63 @@ const renderPiece = (piece: Piece) => {
     if (!imageSrc) return null;
     return <img src={imageSrc} width={"100%"} height={"100%"} alt={piece || 'invalid'}/>;
 };
+
+function PieceSelector(props: { onSelectPiece: (piece: string) => void; }) {
+
+    function queenClick(){
+        props.onSelectPiece('Q');
+    }
+    function rookClick(){
+        props.onSelectPiece('R');
+    }
+    function bishopClick(){
+        props.onSelectPiece('B');
+    }
+
+    function knightClick(){
+        props.onSelectPiece('N');
+    }
+
+
+
+    return (
+        <div>
+        <button onClick={queenClick}>
+            Queen
+        </button>
+    <button onClick={rookClick}>
+        Rook
+    </button>
+    <button onClick={bishopClick}>
+        Bishop
+    </button>
+    <button onClick={knightClick}>
+        Knight
+    </button>
+        </div>
+
+    );
+}
+
+
 const Chess: React.FC = () => {
     const [board, setBoard] = useState(initialBoard);
     const [dragging, setDragging] = useState<{ row: number; col: number } | null>(null);
     const [validDropLocations, setValidDropLocations] = useState<boolean[][]>([]);
     const [whiteTurn, setWhiteTurn] = useState<boolean>(true);
+    const [winner, setWinner] = useState<{gameOver: boolean; winner: string} | null>({gameOver: false, winner: ''});
+    const [enPassantTarget, setEnPassantTarget] = useState<{ row: number; col: number } | null>(null);
+    const [promotedPawn, setPromotedPawn] = useState<{ row: number; col: number; piece: string } | null>(null);
+
+    const [hasMoved, setHasMoved] = useState({
+        WK: false,
+        BK: false,
+        WRookA: false,
+        WRookH: false,
+        BRookA: false,
+        BRookH: false,
+    });
+
     const isWithinBounds = (row: number, col: number): boolean => {
         return row >= 0 && row < 8 && col >= 0 && col < 8;
     };
@@ -124,41 +175,46 @@ const Chess: React.FC = () => {
             return false;
         }
 
-        const isWhite = piece[0] === "W";
-        const rowDiff = toRow - fromRow;
-        const colDiff = Math.abs(toCol - fromCol);
+        const direction = piece === "WP" ? -1 : 1;
+        const startRow = piece === "WP" ? 6 : 1;
 
-        if (isWhite) {
-            if (colDiff === 0) {
-                if (rowDiff === -1) {
-                    return board[toRow][toCol] === null;
-                }
-                if (rowDiff === -2 && fromRow === 6) {
-                    return (
-                        board[toRow][toCol] === null && board[toRow + 1][toCol] === null
-                    );
-                }
-            } else if (colDiff === 1 && rowDiff === -1) {
-                const targetPiece = board[toRow][toCol];
-                return targetPiece !== null && targetPiece[0] === "B";
-            }
-        } else {
-            if (colDiff === 0) {
-                if (rowDiff === 1) {
-                    return board[toRow][toCol] === null;
-                }
-                if (rowDiff === 2 && fromRow === 1) {
-                    return (
-                        board[toRow][toCol] === null && board[toRow - 1][toCol] === null
-                    );
-                }
-            } else if (colDiff === 1 && rowDiff === 1) {
-                const targetPiece = board[toRow][toCol];
-                return targetPiece !== null && targetPiece[0] === "W";
-            }
+        // Regular move
+        if (
+            fromCol === toCol &&
+            board[toRow][toCol] === null &&
+            fromRow + direction === toRow
+        ) {
+            return true;
         }
 
-        return false;
+        // Double move
+        if (
+            fromCol === toCol &&
+            board[toRow][toCol] === null &&
+            fromRow + direction * 2 === toRow &&
+            fromRow === startRow &&
+            board[fromRow + direction][fromCol] === null
+        ) {
+            return true;
+        }
+
+        // Capture
+        if (
+            Math.abs(fromCol - toCol) === 1 &&
+            fromRow + direction === toRow &&
+            board[toRow][toCol] !== null &&
+            board[toRow][toCol]?.charAt(0) !== piece[0]
+        ) {
+            return true;
+        }
+
+        // En passant capture
+        return !!(enPassantTarget &&
+            Math.abs(fromCol - toCol) === 1 &&
+            fromRow + direction === toRow &&
+            toRow === enPassantTarget.row &&
+            toCol === enPassantTarget.col);
+
     };
 
     const isValidKnightMove = (
@@ -195,28 +251,44 @@ const Chess: React.FC = () => {
         toRow: number,
         toCol: number
 
-    ): boolean => {
+    ): { valid: boolean; rookMove?: { fromRow: number; fromCol: number; toRow: number; toCol: number } } => {
+        let result: { valid: boolean; rookMove?: { fromRow: number; fromCol: number; toRow: number; toCol: number } } = { valid: false };
+
         switch (piece) {
             case 'WP' :
             case 'BP':
-                return isValidPawnMove(board, piece, fromRow, fromCol, toRow, toCol);
+                result.valid = isValidPawnMove(board, piece, fromRow, fromCol, toRow, toCol);
+                break;
             case 'WN' :
             case 'BN':
-                return isValidKnightMove(board, piece, fromRow, fromCol, toRow, toCol);
+                result.valid = isValidKnightMove(board, piece, fromRow, fromCol, toRow, toCol);
+                break;
             case 'WB' :
             case 'BB':
-                return isValidBishopMove(board, piece, fromRow, fromCol, toRow, toCol);
+                result.valid = isValidBishopMove(board, piece, fromRow, fromCol, toRow, toCol);
+                break;
             case 'WR' :
             case 'BR':
-                return isValidRookMove(board, piece, fromRow, fromCol, toRow, toCol);
+                result.valid = isValidRookMove(board, piece, fromRow, fromCol, toRow, toCol);
+                break;
             case 'WQ' :
             case 'BQ':
-                return isValidQueenMove(board, piece, fromRow, fromCol, toRow, toCol);
+                result.valid = isValidQueenMove(board, piece, fromRow, fromCol, toRow, toCol);
+                break;
             case 'WK' :
             case 'BK':
-                return isValidKingMove(board, piece, fromRow, fromCol, toRow, toCol);
+                result = isValidKingMove(board, piece, fromRow, fromCol, toRow, toCol);
+                break;
         }
-        return false;
+
+        if (!result.valid) {
+            return result;
+        }
+
+        return {
+            valid: !wouldOwnKingBeInCheck(board, piece, fromRow, fromCol, toRow, toCol),
+            rookMove: result.rookMove,
+        };
     }
 
     const isValidBishopMove = (
@@ -377,42 +449,106 @@ const Chess: React.FC = () => {
         fromCol: number,
         toRow: number,
         toCol: number
-    ): boolean => {
+    ): {valid: boolean; rookMove?: { fromRow: number; fromCol: number; toRow: number; toCol: number } } => {
         if (!piece || (piece[1] !== "K" && piece[1] !== "k")) {
-            return false;
+            return { valid: false };
         }
 
         const isWhite = piece[0] === "W";
         const rowDiff = Math.abs(toRow - fromRow);
         const colDiff = Math.abs(toCol - fromCol);
 
-        if (rowDiff > 1 || colDiff > 1) {
-            return false;
-        }
-
         const targetPiece = board[toRow][toCol];
         if (targetPiece && targetPiece[0] === (isWhite ? "W" : "B")) {
-            return false;
+            return {valid:false};
         }
 
         const temp = board.map(row => [...row]);
         temp[toRow][toCol] = piece;
         temp[fromRow][fromCol] = null;
 
-        if(isKingInCheck(temp, toRow, toCol, piece[0])){
-            return false;
+        if (rowDiff <= 1 && colDiff <= 1) {
+            if (isKingInCheck(temp, toRow, toCol, piece[0])) {
+                return { valid: false };
+            }
+            return { valid: true };
+        } else if (rowDiff === 0 && colDiff === 2) {
+            if (isKingInCheck(temp, toRow, toCol, piece[0])) {
+                return {valid:false};
+            }
+
+            const kingSide = toCol === 6;
+            const rookCol = kingSide ? 7 : 0;
+
+            if (hasMoved[isWhite ? "WK" : "BK"]) {
+                return {valid:false};
+            }
+
+            if (hasMoved[isWhite ? (kingSide ? "WRookH" : "WRookA") : (kingSide ? "BRookH" : "BRookA")]) {
+                return {valid:false};
+            }
+
+            for (let col = Math.min(fromCol, rookCol) + 1; col < Math.max(fromCol, rookCol); col++) {
+                if (board[fromRow][col] !== null) {
+                    return {valid:false};
+                }
+
+                if (isKingInCheck(board, fromRow, col, piece[0])) {
+                    return {valid:false};
+                }
+            }
+
+            const rookMove = {
+                fromRow: fromRow,
+                fromCol: rookCol,
+                toRow: fromRow,
+                toCol: kingSide ? 5 : 3,
+            };
+
+            return {
+                valid: true,
+                rookMove,
+            };
         }
 
-        return true;
+        return {valid:false};
     };
 
-    const handleDragStart = (row: number, col: number) => {
+    const wouldOwnKingBeInCheck = (
+        board: Piece[][],
+        piece: string,
+        fromRow: number,
+        fromCol: number,
+        toRow: number,
+        toCol: number
+    ): boolean => {
+        const tempBoard = board.map(row => [...row]);
+        tempBoard[toRow][toCol] = piece;
+        tempBoard[fromRow][fromCol] = null;
+
+        let kingRow = -1;
+        let kingCol = -1;
+
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const currentPiece = tempBoard[row][col];
+                if (currentPiece && currentPiece[0] === piece[0] && (currentPiece[1] === "K" || currentPiece[1] === "k")) {
+                    kingRow = row;
+                    kingCol = col;
+                    break;
+                }
+            }
+        }
+
+        return isKingInCheck(tempBoard, kingRow, kingCol, piece[0]);
+    };
+
+    const startMove = (row: number, col: number) => {
         const piece = board[row][col];
 
         if (!piece) {
             return;
         }
-
 
         if ((whiteTurn && piece[0] === 'W') || (!whiteTurn && piece[0] === 'B')) {
 
@@ -422,31 +558,231 @@ const Chess: React.FC = () => {
 
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
-                    if (isValidMove(board, piece, row, col, r, c)) {
+                    const moveResult = isValidMove(board, piece, row, col, r, c);
+                    if (moveResult.valid) {
                         locations[r][c] = true;
                     }
                 }
             }
+
+            // Check for castling conditions
+            if (piece[1] === "K" && !hasMoved[piece === "WK" ? "WK" : "BK"]) {
+                const kingSideRookCol = 7;
+                const queenSideRookCol = 0;
+
+                // Check king-side rook
+                if (!hasMoved[piece === "WK" ? "WRookH" : "BRookH"]) {
+                    let isCastlingPathClear = true;
+                    for (let c = col + 1; c < kingSideRookCol; c++) {
+                        if (board[row][c] !== null || isKingInCheck(board, row, c, piece[0])) {
+                            isCastlingPathClear = false;
+                            break;
+                        }
+                    }
+                    if (isCastlingPathClear) {
+                        locations[row][col + 2] = true;
+                    }
+                }
+
+                // Check queen-side rook
+                if (!hasMoved[piece === "WK" ? "WRookA" : "BRookA"]) {
+                    let isCastlingPathClear = true;
+                    for (let c = col - 1; c > queenSideRookCol; c--) {
+                        if (board[row][c] !== null || isKingInCheck(board, row, c, piece[0])) {
+                            isCastlingPathClear = false;
+                            break;
+                        }
+                    }
+                    if (isCastlingPathClear) {
+                        locations[row][col - 2] = true;
+                    }
+                }
+            }
+
             setValidDropLocations(locations);
             setDragging({ row, col });
         }
     };
 
-    const handleDrop = (row: number, col: number) => {
+    const handlePromotionSelection = (selectedPiece: string) => {
+        if (promotedPawn) {
+            setDragging(null);
+            const newBoard = board.map((row) => [...row]);
+            newBoard[promotedPawn.row][promotedPawn.col] = `${promotedPawn.piece[0]}${selectedPiece}`;
+            setBoard(newBoard);
+            setPromotedPawn(null); // Reset the promotedPawn state
+        }
+    };
+
+
+    const makeMove = (row: number, col: number) => {
         if (!dragging) return;
 
         const piece = board[dragging.row][dragging.col];
-        if (piece && isValidMove(board,piece,dragging.row,dragging.col,row,col)) {
+        const moveResult = isValidMove(board, piece as string, dragging.row, dragging.col, row, col);
+
+        if (moveResult.valid) {
             const newBoard = [...board];
             newBoard[row][col] = piece;
             newBoard[dragging.row][dragging.col] = null;
+
+            // Castling handling
+            if (moveResult.rookMove) {
+                const { fromRow, fromCol, toRow, toCol } = moveResult.rookMove;
+                newBoard[toRow][toCol] = newBoard[fromRow][fromCol];
+                newBoard[fromRow][fromCol] = null;
+
+            }
+
+
+            if (
+                (piece === "WP" || piece === "BP") &&
+                enPassantTarget &&
+                row === enPassantTarget.row &&
+                col === enPassantTarget.col
+            ) {
+                newBoard[enPassantTarget.row + (piece === "WP" ? 1 : -1)][enPassantTarget.col] = null;
+            }
+
+
+
             setBoard(newBoard);
 
+            if ((piece === "WP" && row === 0) || (piece === "BP" && row === 7)) {
+                setPromotedPawn({row, col, piece});
+            }
+
+
+                // Update hasMoved for the rooks and kings. Tracks castling eligibility.
+            setHasMoved((prev) => ({
+                ...prev,
+                WK: prev.WK || (piece === "WK"),
+                BK: prev.BK || (piece === "BK"),
+                WRookA: prev.WRookA || (piece === "WR" && dragging.col === 0),
+                WRookH: prev.WRookH || (piece === "WR" && dragging.col === 7),
+                BRookA: prev.BRookA || (piece === "BR" && dragging.col === 0),
+                BRookH: prev.BRookH || (piece === "BR" && dragging.col === 7),
+            }));
+
             setWhiteTurn(!whiteTurn);
+
+            if (
+                (piece === "WP" || piece === "BP") &&
+                Math.abs(dragging.row - row) === 2
+            ) {
+                setEnPassantTarget({
+                    row: (dragging.row + row) / 2,
+                    col: col,
+                });
+            } else {
+                setEnPassantTarget(null);
+            }
         }
+
         setDragging(null);
         setValidDropLocations([]);
     };
+
+
+    const isCheckmate = (
+        kingColor: string,
+        kingRow: number,
+        kingCol: number
+    ): boolean => {
+
+
+        if (!isKingInCheck(board, kingRow, kingCol, kingColor)) {
+            return false;
+        }
+
+        return !hasLegalMove(kingColor, kingRow, kingCol);
+    };
+
+    const isStalemate = (
+        kingColor: string,
+        kingRow: number,
+        kingCol: number
+    ): boolean => {
+
+        if (isKingInCheck(board, kingRow, kingCol, kingColor)) {
+            return false;
+        }
+
+        return !hasLegalMove(kingColor, kingRow, kingCol);
+    };
+
+    const hasLegalMove = (kingColor: string, kingRow: number, kingCol: number): boolean => {
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = board[row][col];
+                if (piece && piece[0] === kingColor) {
+                    for (let newRow = 0; newRow < 8; newRow++) {
+                        for (let newCol = 0; newCol < 8; newCol++) {
+                            if (isValidMove(board, piece, row, col, newRow, newCol).valid) {
+                                const tempBoard = board.map(row => [...row]);
+                                tempBoard[newRow][newCol] = piece;
+                                tempBoard[row][col] = null;
+
+                                // Update the king's position if the moving piece is the king
+                                let updatedKingRow = kingRow;
+                                let updatedKingCol = kingCol;
+                                if (piece === `${kingColor}K`) {
+                                    updatedKingRow = newRow;
+                                    updatedKingCol = newCol;
+                                }
+
+                                if (!isKingInCheck(tempBoard, updatedKingRow, updatedKingCol, kingColor)) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    };
+
+
+    useEffect(() => {
+
+        const kingColor = whiteTurn ? 'W' : 'B';
+        let kingRow = -1;
+        let kingCol = -1;
+
+        // Find the King's position
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                if (board[row][col] === `${kingColor}K`) {
+                    kingRow = row;
+                    kingCol = col;
+                    break;
+                }
+            }
+            if (kingRow !== -1) break;
+        }
+
+        if (isCheckmate(kingColor, kingRow, kingCol)) {
+            setWinner({ gameOver: true, winner: whiteTurn ? 'Black' : 'White' });
+        } else if (isStalemate(kingColor, kingRow, kingCol)) {
+            setWinner({ gameOver: true, winner: 'stalemate' });
+        }
+    }, [whiteTurn, setWinner]);
+
+    useEffect(() => {
+        if (winner?.gameOver) {
+            switch (winner.winner) {
+                case 'White':
+                    return;
+                case 'Black':
+                    return;
+                case 'stalemate':
+                    return;
+            }
+        }
+    }, [winner]);
+
 
     const squares = [];
     for (let row = 0; row < 8; row++) {
@@ -460,10 +796,9 @@ const Chess: React.FC = () => {
                 <Square
                     key={`${row}-${col}`}
                     isLight={isLight}
-                    draggable={piece ? true : false}
-                    onDragStart={() => piece ? handleDragStart(row, col) : undefined}
+                    onDragStart={() => (piece && !promotedPawn)? startMove(row, col) : undefined}
                     onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => handleDrop(row, col)}
+                    onDrop={() => makeMove(row, col)}
                 >
                     {dragging && isValidDropLocation && <ValidMoveIndicator />}
                     {renderPiece(piece)}
@@ -476,6 +811,9 @@ const Chess: React.FC = () => {
         <BackgroundContainer>
             <h1 style={{ color: "white" }}>Chess Board</h1>
             <Grid>{squares}</Grid>
+            {promotedPawn && (
+                <PieceSelector onSelectPiece={handlePromotionSelection}/>
+            )}
         </BackgroundContainer>
     );
 };
