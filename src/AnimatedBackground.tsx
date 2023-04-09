@@ -148,7 +148,7 @@ const AnimatedBackground: React.FC = () => {
                 />,
                 <LinkCube
                     position={[Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10]}
-                    url={"/chess"}
+                    url={"/#/chess"}
                     img={"./chess.png"}
                     key={20}
                 />

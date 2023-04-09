@@ -9,7 +9,7 @@ function App() {
       <Router>
       <Routes>
           <Route path="/" Component={AnimatedBackground} />
-          <Route path="/board"  Component={Chess} />
+          <Route path="/chess"  Component={Chess} />
       </Routes>
       </Router>
   );
