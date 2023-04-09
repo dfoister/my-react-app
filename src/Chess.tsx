@@ -774,10 +774,13 @@ const Chess: React.FC = () => {
         if (winner?.gameOver) {
             switch (winner.winner) {
                 case 'White':
+                    alert('White wins');
                     return;
                 case 'Black':
+                    alert('Black wins');
                     return;
                 case 'stalemate':
+                    alert('Stalemate');
                     return;
             }
         }
