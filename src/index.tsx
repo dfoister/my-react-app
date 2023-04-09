@@ -4,7 +4,7 @@ import './index.css';
 import reportWebVitals from './reportWebVitals';
 import {createHashRouter, RouterProvider} from "react-router-dom";
 import AnimatedBackground from "./AnimatedBackground";
-import Chess from "./Chess";
+import Chess from "./Chess/Chess";
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

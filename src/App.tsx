@@ -2,7 +2,7 @@ import React from 'react';
 import './App.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AnimatedBackground from "./AnimatedBackground";
-import Chess from "./Chess";
+import Chess from "./Chess/Chess";
 
 function App() {
   return (
